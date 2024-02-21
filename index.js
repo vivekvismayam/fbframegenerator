@@ -109,10 +109,9 @@ bot.on('callback_query', async query => {
             });
             bot.onReplyToMessage(chat.id,newmsg.message_id,async (rep)=>{
                 bot.sendMessage(chat.id, 'Picture uploaded successfully✅. Validating the image 🔍⏳🔍⏳🔍⏳');
-                console.log(rep);
                 if(rep?.document?.mime_type=='image/png'){
                     bot.sendMessage(chat.id, 'Validated image successfully! ✅ \nPlease share below FRAME ID to use this frame: \n'+rep?.document?.file_id);
-                    bot.sendDocument(process.env.TELEGRAM_CHANNEL,rep?.document?.file_id, { caption:rep?.chat?.username+' from chat'+ep?.chat?.id});
+                    bot.sendDocument(process.env.TELEGRAM_CHANNEL,rep?.document?.file_id, { caption:rep?.chat?.username+' from chat'+rep?.chat?.id});
                 }else{
                     bot.sendMessage(chat.id, 'Please upload a PNG Vector image as frame ❌ \n Please \/restart');
                 }
@@ -140,7 +139,7 @@ bot.on('callback_query', async query => {
                         let imageId=(rep?.document?.file_id)||((rep?.photo?.length>0)?(rep?.photo[0].file_id):false);
                         if(imageId ){
                             bot.sendMessage(chat.id, 'Processing. This may take few minutes based on the image size uploaded⏳⏳⏳');
-                            bot.sendDocument(process.env.TELEGRAM_CHANNEL,imageId, { caption:rep?.chat?.username+' from chat'+ep?.chat?.id});
+                            bot.sendDocument(process.env.TELEGRAM_CHANNEL,imageId, { caption:rep?.chat?.username+' from chat'+rep?.chat?.id});
                            const image= await bot.getFileLink(imageId);
                            sendImage(framelink,image,chat.id,rep?.chat?.username);
                         }else{
@@ -164,7 +163,7 @@ async function validateFileId(fileId){
         image= await bot.getFileLink(fileId);
         return image;
     }catch(e){
-        console.error(e);
+        //console.error(e);
         return null;
     }
 }
