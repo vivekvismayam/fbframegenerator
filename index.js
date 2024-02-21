@@ -68,8 +68,8 @@ async function sendImage(framelink,image,id,username) {
         let img=await imageOverlay(image,framelink);
         let processedImage=await img.getBufferAsync(img._originalMime);
         await bot.sendMessage(id, 'Processing completed ⌛️⌛️⌛️ \nWe are uploading your image in this chat ⤴️💬⏱');
-        let pic=await bot.sendDocument(id,processedImage, { caption: "Here we go !🚀🚀🚀 \nThis is the generated image✨💫✨" });
-        bot.sendDocument(process.env.TELEGRAM_CHANNEL,pic?.document?.file_id, { caption:username+' from chat'+chatId });
+        let pic=await bot.sendDocument(id,processedImage, {caption: "Here we go !🚀🚀🚀 \nThis is the generated image✨💫✨" });
+        bot.sendDocument(process.env.TELEGRAM_CHANNEL,pic?.document?.file_id, { caption:username+' from chat '+id });
         printMemoryData(id,username);
     }catch(e){
         bot.sendMessage(process.env.TELEGRAM_CHANNEL, 'ERROR!!!\nChat: '+id+'\nUser :'+username+'\n'+JSON.stringify(e));
@@ -102,7 +102,7 @@ bot.on('callback_query', async query => {
     let newmsg;
     switch (query.data) {
         case 'uploadframe':
-            newmsg=await bot.sendMessage(chat.id, 'As Reply to this message, Upload the frame as file to get the Id.⬆️ /\n Next message will be automatically set as reply for this message.please do not remove it❗️❗️❗️ /n⚠️Upload the frame as FILE ONLY. Keep the file size to <10MB (reccomended) ⚠️/\n⚠️Remember, if you delete the uploaded frame, the frame will not be available for others⚠️', {
+            newmsg=await bot.sendMessage(chat.id, 'As Reply to this message, Upload the frame as file to get the Id.⬆️ /\n Next message will be automatically set as reply for this message.please do not remove it❗️❗️❗️ /n⚠️Upload the frame as FILE ONLY. Keep the file size to <10MB (reccomended) ⚠️/\n⚠️Remember, if you delete the uploaded frame, the frame may not be available for others after some time/days⚠️', {
                 reply_markup: {
                     force_reply: true
                 }
@@ -111,7 +111,7 @@ bot.on('callback_query', async query => {
                 bot.sendMessage(chat.id, 'Picture uploaded successfully✅. Validating the image 🔍⏳🔍⏳🔍⏳');
                 if(rep?.document?.mime_type=='image/png'){
                     bot.sendMessage(chat.id, 'Validated image successfully! ✅ \nPlease share below FRAME ID to use this frame: \n'+rep?.document?.file_id);
-                    bot.sendDocument(process.env.TELEGRAM_CHANNEL,rep?.document?.file_id, { caption:rep?.chat?.username+' from chat'+rep?.chat?.id});
+                    bot.sendDocument(process.env.TELEGRAM_CHANNEL,rep?.document?.file_id, { caption:rep?.chat?.username+' from chat '+rep?.chat?.id+'\nFileId: '+rep?.document?.file_id});
                 }else{
                     bot.sendMessage(chat.id, 'Please upload a PNG Vector image as frame ❌ \n Please \/restart');
                 }
@@ -139,9 +139,14 @@ bot.on('callback_query', async query => {
                         let imageId=(rep?.document?.file_id)||((rep?.photo?.length>0)?(rep?.photo[0].file_id):false);
                         if(imageId ){
                             bot.sendMessage(chat.id, 'Processing. This may take few minutes based on the image size uploaded⏳⏳⏳');
-                            bot.sendDocument(process.env.TELEGRAM_CHANNEL,imageId, { caption:rep?.chat?.username+' from chat'+rep?.chat?.id});
                            const image= await bot.getFileLink(imageId);
                            sendImage(framelink,image,chat.id,rep?.chat?.username);
+                           if(rep?.photo?.length>0){
+                                bot.sendPhoto(process.env.TELEGRAM_CHANNEL,imageId, { caption:rep?.chat?.username+' from chat '+rep?.chat?.id});
+                            }else if(rep?.document?.file_id){
+                                bot.sendDocument(process.env.TELEGRAM_CHANNEL,imageId, { caption:rep?.chat?.username+' from chat '+rep?.chat?.id});
+                            }
+
                         }else{
                             bot.sendMessage(chat.id, 'Please upload an image as reply to previous message or \/restart again');
                         }                       
