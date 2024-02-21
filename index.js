@@ -10,6 +10,7 @@ const bot = new TelegramBot(token, { polling: true });
 bot.onText(/\/start/, (msg, match) => {
     const chatId = msg.chat.id;
     start(chatId);
+    bot.sendMessage(process.env.TELEGRAM_CHANNEL,'Started chat : '+msg?.chat?.username)
 });
 bot.onText(/\/restart/, (msg, match) => {
     const chatId = msg.chat.id;
@@ -36,7 +37,7 @@ you can upload or add frame to your picture using this bot.
     3. Upload your frame (Strictly in PNG format).
     4. Bot will validate the image and process the Id.
         You can share this id with others if they want to use the same frame from this bot
-    
+    ⚠️Upload the frame as FILE ONLY. Keep the file size to <10MB (reccomended) ⚠️
     ❗️When following above steps do not remove any reply to which is automatically appearing.
 
     ✳️Use \/restart at any time to start over✳️
@@ -55,30 +56,43 @@ function start(chatId){
 /*
 bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
-    //console.log(msg);
-      console.log('received ');
+    console.log(msg);
+    bot.sendMessage(process.env.TELEGRAM_CHANNEL, 'Channel message');
+    //console.log('received ');
 
 });
 */
-async function sendImage(framelink,image,id) {
-
-    let img=await imageOverlay(image,framelink);
-    let processedImage=await img.getBufferAsync(img._originalMime);
-    bot.sendMessage(id, 'Processing completed ⌛️⌛️⌛️ \nWe are uploading your image in this chat ⤴️💬⏱');
-    bot.sendPhoto(id,processedImage, { caption: "Here we go !🚀🚀🚀 \nThis is the generated image✨💫✨" });
-
+async function sendImage(framelink,image,id,username) {
+    try{
+        printMemoryData(id,username);
+        let img=await imageOverlay(image,framelink);
+        let processedImage=await img.getBufferAsync(img._originalMime);
+        await bot.sendMessage(id, 'Processing completed ⌛️⌛️⌛️ \nWe are uploading your image in this chat ⤴️💬⏱');
+        let pic=await bot.sendDocument(id,processedImage, { caption: "Here we go !🚀🚀🚀 \nThis is the generated image✨💫✨" });
+        bot.sendDocument(process.env.TELEGRAM_CHANNEL,pic?.document?.file_id, { caption:username+' from chat'+chatId });
+        printMemoryData(id,username);
+    }catch(e){
+        bot.sendMessage(process.env.TELEGRAM_CHANNEL, 'ERROR!!!\nChat: '+id+'\nUser :'+username+'\n'+JSON.stringify(e));
+        bot.sendMessage(id, 'Error occured: '+e.message);
+        if(e.message.includes('is too big')){
+            bot.sendMessage(id, 'Generated filesize is more than expected. Please try with a little smaller image');
+        }
+        printMemoryData(id,username);
+    }
 }
 let inline_keyboard = [
     [
         {
             text: 'Upload a New Frame📲',
             callback_data: 'uploadframe'
-        },
+        }
+
+    ],
+    [
         {
             text: 'Add Frame To My Image🖼',
             callback_data: 'addframe'
         }
-
     ]
 ];
 bot.on('callback_query', async query => {
@@ -88,15 +102,17 @@ bot.on('callback_query', async query => {
     let newmsg;
     switch (query.data) {
         case 'uploadframe':
-            newmsg=await bot.sendMessage(chat.id, 'As Reply to this message, Upload the frame to get the Id.⬆️ /\n Next message will be automatically set as reply for this message.please do not remove it❗️❗️❗️ /\n⚠️Remember, if you delete the uploaded frame, the frame will not be available for others⚠️', {
+            newmsg=await bot.sendMessage(chat.id, 'As Reply to this message, Upload the frame as file to get the Id.⬆️ /\n Next message will be automatically set as reply for this message.please do not remove it❗️❗️❗️ /n⚠️Upload the frame as FILE ONLY. Keep the file size to <10MB (reccomended) ⚠️/\n⚠️Remember, if you delete the uploaded frame, the frame will not be available for others⚠️', {
                 reply_markup: {
                     force_reply: true
                 }
             });
             bot.onReplyToMessage(chat.id,newmsg.message_id,async (rep)=>{
                 bot.sendMessage(chat.id, 'Picture uploaded successfully✅. Validating the image 🔍⏳🔍⏳🔍⏳');
+                console.log(rep);
                 if(rep?.document?.mime_type=='image/png'){
                     bot.sendMessage(chat.id, 'Validated image successfully! ✅ \nPlease share below FRAME ID to use this frame: \n'+rep?.document?.file_id);
+                    bot.sendDocument(process.env.TELEGRAM_CHANNEL,rep?.document?.file_id, { caption:rep?.chat?.username+' from chat'+ep?.chat?.id});
                 }else{
                     bot.sendMessage(chat.id, 'Please upload a PNG Vector image as frame ❌ \n Please \/restart');
                 }
@@ -121,13 +137,12 @@ bot.on('callback_query', async query => {
                         }
                     });
                     bot.onReplyToMessage(chat.id,newmsg2.message_id,async (rep)=>{
-                        //console.log('!!!!!!!! '+ JSON.stringify(rep));
                         let imageId=(rep?.document?.file_id)||((rep?.photo?.length>0)?(rep?.photo[0].file_id):false);
                         if(imageId ){
                             bot.sendMessage(chat.id, 'Processing. This may take few minutes based on the image size uploaded⏳⏳⏳');
-                           console.log('Image Id '+imageId)
+                            bot.sendDocument(process.env.TELEGRAM_CHANNEL,imageId, { caption:rep?.chat?.username+' from chat'+ep?.chat?.id});
                            const image= await bot.getFileLink(imageId);
-                           sendImage(framelink,image,chat.id);
+                           sendImage(framelink,image,chat.id,rep?.chat?.username);
                         }else{
                             bot.sendMessage(chat.id, 'Please upload an image as reply to previous message or \/restart again');
                         }                       
@@ -153,4 +168,18 @@ async function validateFileId(fileId){
         return null;
     }
 }
+function formatMemoryUsage(data){return `${Math.round(data / 1024 / 1024 * 100) / 100} MB`};
+function printMemoryData(id,username){
+    let memoryData = process.memoryUsage();
+
+    let memoryUsage = {
+        rss: `${formatMemoryUsage(memoryData.rss)} -> Resident Set Size - total memory allocated for the process execution`,
+        heapTotal: `${formatMemoryUsage(memoryData.heapTotal)} -> total size of the allocated heap`,
+        heapUsed: `${formatMemoryUsage(memoryData.heapUsed)} -> actual memory used during the execution`,
+        external: `${formatMemoryUsage(memoryData.external)} -> V8 external memory`,
+      };
+      //console.log(memoryUsage);
+      bot.sendMessage(process.env.TELEGRAM_CHANNEL, 'Chat: '+id+'\nUser :'+username+'\n'+JSON.stringify(memoryUsage));
+}
+
 
