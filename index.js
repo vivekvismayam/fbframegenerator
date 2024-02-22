@@ -141,10 +141,17 @@ bot.on('callback_query', async query => {
                             bot.sendMessage(chat.id, 'Processing. This may take few minutes based on the image size uploaded⏳⏳⏳');
                            const image= await bot.getFileLink(imageId);
                            sendImage(framelink,image,chat.id,rep?.chat?.username);
+                           //console.log(rep);
                            if(rep?.photo?.length>0){
                                 bot.sendPhoto(process.env.TELEGRAM_CHANNEL,imageId, { caption:rep?.chat?.username+' from chat '+rep?.chat?.id});
+                                if(rep?.photo[0]?.file_size>process.env.TELEGRAM_OVERSIZE){
+                                    bot.sendMessage(chat.id, 'Uploaded image size is little big! But dont worry we are trying to process it ');
+                                }
                             }else if(rep?.document?.file_id){
                                 bot.sendDocument(process.env.TELEGRAM_CHANNEL,imageId, { caption:rep?.chat?.username+' from chat '+rep?.chat?.id});
+                                if(rep?.document?.file_size>process.env.TELEGRAM_OVERSIZE){
+                                    bot.sendMessage(chat.id, 'Uploaded image size is little big! But dont worry we are trying to process it ');
+                                }
                             }
 
                         }else{
